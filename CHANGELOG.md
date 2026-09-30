@@ -1,3 +1,7 @@
+### Unreleased
+
+- Add `webDb.pgbackrest`: WAL archiving and daily base backups of web-db to S3 with pgBackRest, the same setup OSMF uses. With `archive_timeout` the max data loss is about one minute. The `db` image now includes pgBackRest.
+
 ### v2.0.0
 
 Breaking changes. Upgrading in place from an older release is not supported. Install a new release and migrate data.

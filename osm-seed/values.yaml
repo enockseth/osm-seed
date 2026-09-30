@@ -79,14 +79,45 @@ webDb:
     enabled: false
     key: "nodegroup_type"
     values: ["database"]
+  # Service account for the pod, e.g. to use IRSA on EKS for pgbackrest S3 access
+  serviceAccount:
+    enabled: false
+    name: ""
+  # WAL archiving and daily base backups to S3 with pgBackRest, same setup as OSMF.
+  # Requires postgresqlConfig.enabled. Enabling it restarts the database.
+  pgbackrest:
+    enabled: false
+    s3Bucket: ""
+    s3Region: us-east-1
+    s3Endpoint: s3.amazonaws.com
+    # Folder inside the bucket
+    s3Path: /web-db
+    # "shared" = static keys below, "auto" = node IAM role (EC2/EKS),
+    # "web-id" = IRSA on EKS (set serviceAccount). Leave the keys empty for auto and web-id
+    s3KeyType: shared
+    s3Key: ""
+    s3KeySecret: ""
+    # Encrypt the repo with aes-256-cbc. Keep this value safe, backups can't be read without it
+    cipherPass: ""
+    # Number of full backups to keep (weekly fulls, so 2 = 1-2 weeks of history)
+    retentionFull: 2
+    # Seconds before postgres closes a WAL segment that is not full and sends it to S3.
+    # It is the max data loss when the disk is lost
+    archiveTimeout: 60
+    # Hours between base backups. Full on Sundays, diff the other days
+    backupIntervalHours: 24
+    # Max WAL queued for archive-push (e.g. 10GiB). Above it pgbackrest drops WAL so pg_wal
+    # doesn't fill the disk, and the archive gets a gap. Empty = no limit
+    archivePushQueueMax: ""
+    resources: {}
 # ====================================================================================================
 # web-api: OSM website + API (openstreetmap-website, Rails)
 # ====================================================================================================
 webApi:
   enabled: false
   image:
-    name: ""
-    tag: ""
+    name: "ghcr.io/osm-seed/web"
+    tag: "2.0.0"
   serviceAccount:
     enabled: false
     name: ""

@@ -1,4 +1,7 @@
 {{- if .Values.webDb.enabled -}}
+{{- if and .Values.webDb.pgbackrest.enabled (not .Values.webDb.postgresqlConfig.enabled) }}
+{{- fail "webDb.pgbackrest requires webDb.postgresqlConfig.enabled" }}
+{{- end }}
 {{- if .Values.webDb.postgresqlConfig.enabled -}}
 apiVersion: v1
 kind: ConfigMap
@@ -10,5 +13,11 @@ metadata:
 data:
   postgresql.conf: |
 {{ .Values.webDb.postgresqlConfig.values | indent 4 }}
+    {{- if .Values.webDb.pgbackrest.enabled }}
+    # WAL archiving to S3 (webDb.pgbackrest)
+    archive_mode = on
+    archive_command = 'pgbackrest --stanza=main archive-push %p'
+    archive_timeout = {{ .Values.webDb.pgbackrest.archiveTimeout }}
+    {{- end }}
 {{- end }}
 {{- end }}
