@@ -61,9 +61,10 @@ Usage: {{- include "osm-seed.affinity" (dict "root" . "values" .Values.webApi "c
 {{- define "osm-seed.affinity" -}}
 {{- $v := .values -}}
 {{- $anti := and $v.podAntiAffinity $v.podAntiAffinity.enabled -}}
-{{- if or $v.nodeAffinity.enabled $anti }}
+{{- $node := and $v.nodeAffinity $v.nodeAffinity.enabled -}}
+{{- if or $node $anti }}
 affinity:
-  {{- if $v.nodeAffinity.enabled }}
+  {{- if $node }}
   nodeAffinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
@@ -111,12 +112,27 @@ automountServiceAccountToken: true
 {{- end -}}
 
 {{/*
-Env vars that tell jobs where to upload files, per cloudProvider.
-Usage: {{- include "osm-seed.cloudEnv" . | nindent 12 }}
+Where the disks live: aws (EBS) or k3s (folders on the node).
+storageProvider, or its old name cloudProvider, which still wins when set.
+Usage: {{ include "osm-seed.storageProvider" . }}
 */}}
-{{- define "osm-seed.cloudEnv" -}}
-{{- if eq .Values.cloudProvider "aws" }}
-- name: AWS_S3_BUCKET
-  value: {{ .Values.AWS_S3_BUCKET }}
+{{- define "osm-seed.storageProvider" -}}
+{{- .Values.cloudProvider | default .Values.storageProvider | default "aws" -}}
+{{- end -}}
+
+{{/*
+Env of a job: everything in its values env, as is, including CLOUDPROVIDER,
+AWS_S3_BUCKET and AWS keys. CLOUDPROVIDER defaults to the storage provider.
+Usage: {{- include "osm-seed.jobEnv" (dict "root" $ "env" .Values.planetDump.env) | nindent 14 }}
+*/}}
+{{- define "osm-seed.jobEnv" -}}
+{{- $env := .env | default dict -}}
+- name: CLOUDPROVIDER
+  value: {{ $env.CLOUDPROVIDER | default (include "osm-seed.storageProvider" .root) | quote }}
+{{- range $k, $v := $env }}
+{{- if ne $k "CLOUDPROVIDER" }}
+- name: {{ $k }}
+  value: {{ $v | quote }}
+{{- end }}
 {{- end }}
 {{- end -}}
